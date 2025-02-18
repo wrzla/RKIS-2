@@ -10,10 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 6.0.x
+
       - name: Build and restore all projects with error annotations
         continue-on-error: true
         run: |
@@ -26,13 +28,13 @@ jobs:
             dotnet restore "$project"
 
             echo "Building project: \"$project\""
-            build_output=$(dotnet build "$project" --no-restore  || true)
+            build_output=$(dotnet build "$project" --no-restore || true)
 
             if [[ $build_output == *"error"* ]]; then
               build_failed=true
             fi
 
-            echo "$build_output"| awk '!seen[$0]++' | while read -r line; do
+            echo "$build_output" | awk '!seen[$0]++' | while read -r line; do
               if [[ "$line" =~ ^(.*[a-zA-Z0-9_/.]+)\(([0-9]+),([0-9]+)\):\ error\ (.*)$ ]]; then
                 file="${BASH_REMATCH[1]}"
                 line_number="${BASH_REMATCH[2]}"
@@ -42,17 +44,11 @@ jobs:
               fi
             done
           done
+          
           echo "build_failed=$build_failed" >> $GITHUB_ENV
-          echo "$build_failed"
-
-      - name: Check for build errors
-        if: env.build_failed == 'true'
-        run: |
-          echo "Build failed due to errors in the projects."
-          exit 1
+          echo "Build status: $build_failed"
 
       - name: Test all projects
-        continue-on-error: true
         run: |
           test_failed=false
 
@@ -65,8 +61,11 @@ jobs:
             if [[ $test_output == *"Failed!"* ]]; then
               test_failed=true
               while IFS= read -r line; do
-                if [[ "$line" =~ (.*):\ error:\ (.*) ]]; then
-                  echo "::warning file=${BASH_REMATCH[1]}::Test failed - ${BASH_REMATCH[2]}"
+                if [[ "$line" =~ ([^:]+):([0-9]+):\ error:\ (.*) ]]; then
+                  file="${BASH_REMATCH[1]}"
+                  line_number="${BASH_REMATCH[2]}"
+                  error_message="${BASH_REMATCH[3]}"
+                  echo "::error file=$file,line=$line_number::$error_message"
                 fi
               done <<< "$test_output"
             fi
@@ -75,11 +74,19 @@ jobs:
           done
 
           echo "test_failed=$test_failed" >> $GITHUB_ENV
+          echo "Test status: $test_failed"
 
-      - name: Success
-        if: env.build_failed == 'false'
-        run: echo "Build completed successfully without errors."
-
-      - name: Test Warnings Summary
-        if: env.test_failed == 'true'
-        run: echo "Some tests have failed. Warnings were added to the GitHub Actions log."
+      - name: Final Check
+        run: |
+          if [[ "$BUILD_FAILED" == "true" ]]; then
+            echo "Build failed due to errors in the projects."
+            exit 1
+          elif [[ "$TEST_FAILED" == "true" ]]; then
+            echo "Some tests have failed. The workflow will now fail."
+            exit 1
+          else
+            echo "Build and tests completed successfully without errors."
+          fi
+        env:
+          BUILD_FAILED: ${{ env.build_failed }}
+          TEST_FAILED: ${{ env.test_failed }}
