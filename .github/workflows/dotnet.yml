@@ -46,36 +46,34 @@ jobs:
           echo "build_failed=$build_failed" >> $GITHUB_ENV
           echo "$build_failed"
 
-      - name: Test all projects
+      - name: Run tests and report failures
         run: |
-          test_failed=false
+          # Массив для всех проектов
           mapfile -t test_projects < <(find ./Занятие\ 1 -name '*.csproj')
       
+          # Выполнение тестов для каждого проекта
+          test_failed=false
           for test_project in "${test_projects[@]}"; do
             echo "Running tests for: \"$test_project\""
-            
-            # Запуск тестов с выводом в trx формате и в консоль
-            test_output=$(dotnet test "$test_project" --no-restore --no-build --logger "trx" || true)
       
-            # Проверка на наличие неудачных тестов
+            # Запуск тестов и сохранение вывода
+            test_output=$(dotnet test "$test_project" --no-restore --no-build)
+      
+            # Проверка на наличие неудачных тестов в выводе
             if echo "$test_output" | grep -q "Failed"; then
               test_failed=true
               echo "Test failures found for $test_project"
       
-              # Анализируем ошибки и выводим аннотации
-              echo "$test_output" | grep -oP "(?<=Error Message:)(.*?)(?=Stack Trace:)" | while read -r error_message; do
-                echo "::error::$error_message"
-              done
-              
-              # Извлекаем строки с ошибками и аннотируем файлы с кодом
-              echo "$test_output" | grep -oP "(?<=\()[0-9]+(?=\):\ error)" | while read -r line_number; do
-                file_path=$(echo "$test_output" | grep -oP "(?<=^.* at )(.*?)(?=\()")
-                echo "::error file=$file_path,line=$line_number::$error_message"
+              # Извлекаем неудачные тесты и их сообщения
+              echo "$test_output" | grep -E '(\[.*\] .*)' | while read -r line; do
+                # Это регулярное выражение для извлечения информации о тесте
+                if [[ "$line" =~ (.*) ]]; then
+                  test_name="${BASH_REMATCH[1]}"
+                  # Аннотируем ошибку в GitHub Actions с ссылкой на тест
+                  echo "::error file=$test_project::$test_name failed"
+                fi
               done
             fi
-      
-            # Выводим сам результат для проверки
-            echo "$test_output"
           done
       
           if [ "$test_failed" = true ]; then
