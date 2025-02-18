@@ -59,17 +59,16 @@ jobs:
 
           for test_project in "${test_projects[@]}"; do
             echo "🔬 Running tests for: \"$test_project\""
-            
-            test_output=$(dotnet test "$test_project" --no-restore --no-build --logger "console;verbosity=detailed" || true)
+            test_output=$(dotnet test "$test_project" --no-restore --no-build --logger "console;verbosity=normal" 2>&1 || true)
 
-            if [[ $test_output == *"Failed!"* ]]; then
+            if echo "$test_output" | grep -q "Failed!"; then
               test_failed=true
-              echo "❌ Some tests have failed!"
+              echo "❌ Some tests failed!"
 
               while IFS= read -r line; do
-                if [[ "$line" =~ ^\s*Error Message:\ (.*) ]]; then
-                  error_message="${BASH_REMATCH[1]}"
-                  echo "::error title=Test failed::$error_message"
+                if [[ "$line" =~ ^\s*Failed\s+(.*)\s+\[ ]]; then
+                  test_name="${BASH_REMATCH[1]}"
+                  echo "::error title=Test Failed::$test_name"
                 fi
               done <<< "$test_output"
             fi
@@ -78,11 +77,6 @@ jobs:
           done
 
           echo "test_failed=$test_failed" >> $GITHUB_ENV
-          if [[ "$test_failed" == "true" ]]; then
-            echo "❌ Tests failed!"
-          else
-            echo "✅ All tests passed!"
-          fi
 
       - name: ✅ Final Check
         run: |
