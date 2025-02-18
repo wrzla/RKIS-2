@@ -80,12 +80,18 @@ jobs:
 
       - name: ✅ Final Check
         run: |
+          echo "🔎 Checking build and test results..."
+          echo "Build failed: $build_failed"
+          echo "Tests failed: $test_failed"
+
           if [[ "$build_failed" == "true" ]]; then
-            echo "❌ Build failed due to errors in the projects."
+            echo "❌ Build failed. Exiting with error."
             exit 1
-          elif [[ "$test_failed" == "true" ]]; then
-            echo "❌ Some tests have failed. The workflow will now fail."
-            exit 1
-          else
-            echo "✅ Build and tests completed successfully without errors!"
           fi
+
+          if [[ "$test_failed" == "true" ]]; then
+            echo "❌ Some tests have failed. Exiting with error."
+            exit 1
+          fi
+
+          echo "✅ Build and tests completed successfully!"
