@@ -57,7 +57,7 @@ jobs:
         run: |
           test_failed=false
 
-          mapfile -t test_projects < <(find ./Занятие\ 9 ./Занятие\ 10 ./Занятие\ 11 ./Занятие\ 12 -name '*.csproj' | grep 'Tests')
+          mapfile -t test_projects < <(find ./Занятие\ 9 ./Занятие\ 10 ./Занятие\ 11 ./Занятие\ 12 -name '*.csproj')
 
           for test_project in "${test_projects[@]}"; do
             echo "Running tests for: \"$test_project\""
