@@ -18,6 +18,7 @@ jobs:
 
       - name: Build and restore all projects with error annotations
         continue-on-error: true
+        id: build_step
         run: |
           build_failed=false
 
@@ -44,11 +45,12 @@ jobs:
               fi
             done
           done
-          
-          echo "build_failed=$build_failed" >> $GITHUB_ENV
+
+          echo "BUILD_FAILED=$build_failed" >> $GITHUB_ENV
 
       - name: Test all projects
         continue-on-error: true
+        id: test_step
         run: |
           test_failed=false
 
@@ -58,7 +60,7 @@ jobs:
             echo "Running tests for: \"$test_project\""
             test_output=$(dotnet test "$test_project" --no-restore --no-build --logger "console;verbosity=normal" || true)
 
-            if [[ $test_output == *"Failed!"* ]]; then
+            if [[ "$test_output" == *"Failed!"* ]]; then
               test_failed=true
             fi
 
@@ -72,16 +74,14 @@ jobs:
             done
           done
 
-          echo "test_failed=$test_failed" >> $GITHUB_ENV
+          echo "TEST_FAILED=$test_failed" >> $GITHUB_ENV
 
       - name: Final Check
         run: |
-          source $GITHUB_ENV  # Загружаем переменные из среды
-
-          if [[ "$build_failed" == "true" ]]; then
+          if [[ "$BUILD_FAILED" == "true" ]]; then
             echo "Build failed due to errors in the projects."
             exit 1
-          elif [[ "$test_failed" == "true" ]]; then
+          elif [[ "$TEST_FAILED" == "true" ]]; then
             echo "Some tests have failed. The workflow will now fail."
             exit 1
           else
