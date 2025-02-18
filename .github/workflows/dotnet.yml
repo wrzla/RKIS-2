@@ -63,11 +63,16 @@ jobs:
       
               # Перебираем строки вывода на наличие ошибок выполнения тестов
               while IFS= read -r line; do
-                # Обработка ошибок выполнения тестов в формате NUnit (например, исключения)
-                if [[ "$line" =~ \<error\ (.*)\>(.*)\<\/error\> ]]; then
-                  error_type="${BASH_REMATCH[1]}"
+                # Обработка ошибок выполнения тестов, таких как исключения
+                if [[ "$line" =~ (Error\ Message\:|Exception\:)\ (.*) ]]; then
                   error_message="${BASH_REMATCH[2]}"
-                  echo "::error::Test failed: $error_type - $error_message"
+                  echo "::error::$error_message"
+                fi
+                
+                # Обработка ожидаемых ошибок ассертов
+                if [[ "$line" =~ (Expected\:\ .*\ But\ was\:\ .*) ]]; then
+                  error_message="${BASH_REMATCH[1]}"
+                  echo "::error::$error_message"
                 fi
               done <<< "$test_output"
             fi
