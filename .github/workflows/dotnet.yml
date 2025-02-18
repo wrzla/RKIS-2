@@ -64,10 +64,15 @@ jobs:
             if grep -q "Failed!" test_results.log; then
               test_failed=true
 
+              # Ищем строки с упавшими тестами и выводим аннотации
               grep -E "^\s*Failed\s" test_results.log | while read -r line; do
                 test_name=$(echo "$line" | awk '{print $2}')
                 echo "::error title=Test failed::$test_name"
               done
+
+              # Выводим полные ошибки тестов
+              echo "🔴 Test failures detected:"
+              grep -E "^\s*Error Message:" -A3 test_results.log || true
             fi
           done
 
