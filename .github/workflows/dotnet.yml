@@ -52,7 +52,6 @@ jobs:
           exit 1
 
       - name: Test all projects
-        if: env.build_failed == 'false'
         continue-on-error: true
         run: |
           test_failed=false
