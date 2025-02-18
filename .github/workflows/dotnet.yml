@@ -46,7 +46,6 @@ jobs:
           done
           
           echo "build_failed=$build_failed" >> $GITHUB_ENV
-          echo "Build status: $build_failed"
 
       - name: Test all projects
         continue-on-error: true
@@ -74,19 +73,17 @@ jobs:
           done
 
           echo "test_failed=$test_failed" >> $GITHUB_ENV
-          echo "Test status: $test_failed"
 
       - name: Final Check
         run: |
-          if [[ "$BUILD_FAILED" == "true" ]]; then
+          source $GITHUB_ENV  # Загружаем переменные из среды
+
+          if [[ "$build_failed" == "true" ]]; then
             echo "Build failed due to errors in the projects."
             exit 1
-          elif [[ "$TEST_FAILED" == "true" ]]; then
+          elif [[ "$test_failed" == "true" ]]; then
             echo "Some tests have failed. The workflow will now fail."
             exit 1
           else
             echo "Build and tests completed successfully without errors."
           fi
-        env:
-          BUILD_FAILED: ${{ env.build_failed }}
-          TEST_FAILED: ${{ env.test_failed }}
