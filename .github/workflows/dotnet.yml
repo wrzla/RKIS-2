@@ -18,10 +18,8 @@ jobs:
 
       - name: Build and restore all projects with error annotations
         continue-on-error: true
-        id: build_step
         run: |
           build_failed=false
-
           mapfile -t projects < <(find ./Занятие\ 1 -name '*.csproj')
 
           for project in "${projects[@]}"; do
@@ -45,43 +43,44 @@ jobs:
               fi
             done
           done
-
-          echo "BUILD_FAILED=$build_failed" >> $GITHUB_ENV
+          echo "build_failed=$build_failed" >> $GITHUB_ENV
+          echo "$build_failed"
 
       - name: Test all projects
-        continue-on-error: true
-        id: test_step
         run: |
           test_failed=false
-
           mapfile -t test_projects < <(find ./Занятие\ 1 -name '*.csproj')
 
           for test_project in "${test_projects[@]}"; do
             echo "Running tests for: \"$test_project\""
-            test_output=$(dotnet test "$test_project" --no-restore --no-build --logger "console;verbosity=normal" || true)
+            test_output=$(dotnet test "$test_project" --no-restore --no-build --logger trx || true)
 
-            if [[ "$test_output" == *"Failed!"* ]]; then
+            if [[ $test_output == *"Failed!"* ]]; then
               test_failed=true
+              while IFS= read -r line; do
+                if [[ "$line" =~ ([^:]+):([0-9]+):\ error:\ (.*) ]]; then
+                  file="${BASH_REMATCH[1]}"
+                  line_number="${BASH_REMATCH[2]}"
+                  error_message="${BASH_REMATCH[3]}"
+                  echo "::error file=$file,line=$line_number::$error_message"
+                fi
+              done <<< "$test_output"
             fi
 
-            echo "$test_output" | awk '!seen[$0]++' | while read -r line; do
-              if [[ "$line" =~ ([^:]+):([0-9]+):\ error:\ (.*) ]]; then
-                file="${BASH_REMATCH[1]}"
-                line_number="${BASH_REMATCH[2]}"
-                error_message="${BASH_REMATCH[3]}"
-                echo "::error file=$file,line=$line_number::$error_message"
-              fi
-            done
+            echo "$test_output"
           done
 
-          echo "TEST_FAILED=$test_failed" >> $GITHUB_ENV
+          if [ "$test_failed" = true ]; then
+            echo "Tests failed. See errors above."
+            exit 1
+          fi
 
       - name: Final Check
         run: |
-          if [[ "$BUILD_FAILED" == "true" ]]; then
+          if [[ "$build_failed" == "true" ]]; then
             echo "Build failed due to errors in the projects."
             exit 1
-          elif [[ "$TEST_FAILED" == "true" ]]; then
+          elif [[ "$test_failed" == "true" ]]; then
             echo "Some tests have failed. The workflow will now fail."
             exit 1
           else
