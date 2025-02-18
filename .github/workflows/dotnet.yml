@@ -51,6 +51,36 @@ jobs:
           echo "Build failed due to errors in the projects."
           exit 1
 
+      - name: Test all projects
+        if: env.build_failed == 'false'
+        continue-on-error: true
+        run: |
+          test_failed=false
+
+          mapfile -t test_projects < <(find ./Занятие\ 9 ./Занятие\ 10 ./Занятие\ 11 ./Занятие\ 12 -name '*.csproj' | grep 'Tests')
+
+          for test_project in "${test_projects[@]}"; do
+            echo "Running tests for: \"$test_project\""
+            test_output=$(dotnet test "$test_project" --no-restore --no-build --logger trx || true)
+
+            if [[ $test_output == *"Failed!"* ]]; then
+              test_failed=true
+              while IFS= read -r line; do
+                if [[ "$line" =~ (.*):\ error:\ (.*) ]]; then
+                  echo "::warning file=${BASH_REMATCH[1]}::Test failed - ${BASH_REMATCH[2]}"
+                fi
+              done <<< "$test_output"
+            fi
+
+            echo "$test_output"
+          done
+
+          echo "test_failed=$test_failed" >> $GITHUB_ENV
+
       - name: Success
         if: env.build_failed == 'false'
         run: echo "Build completed successfully without errors."
+
+      - name: Test Warnings Summary
+        if: env.test_failed == 'true'
+        run: echo "Some tests have failed. Warnings were added to the GitHub Actions log."
