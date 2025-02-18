@@ -54,29 +54,21 @@ jobs:
           for test_project in "${test_projects[@]}"; do
             echo "Running tests for: \"$test_project\""
             
-            # Запуск тестов с выводом в формате trx
+            # Запуск тестов с выводом в консоль
             test_output=$(dotnet test "$test_project" --no-restore --no-build --logger "trx" || true)
       
-            # Проверяем, были ли в тестах неудачи
-            if [[ $test_output == *"Failed!"* ]]; then
+            # Если в выводе теста есть ошибка, вывести сообщение
+            if echo "$test_output" | grep -q "Failed"; then
               test_failed=true
+              echo "Test failures found for $test_project"
       
-              # Перебираем строки вывода на наличие ошибок выполнения тестов
-              while IFS= read -r line; do
-                # Обработка ошибок выполнения тестов, таких как исключения
-                if [[ "$line" =~ (Error\ Message\:|Exception\:)\ (.*) ]]; then
-                  error_message="${BASH_REMATCH[2]}"
-                  echo "::error::$error_message"
-                fi
-                
-                # Обработка ожидаемых ошибок ассертов
-                if [[ "$line" =~ (Expected\:\ .*\ But\ was\:\ .*) ]]; then
-                  error_message="${BASH_REMATCH[1]}"
-                  echo "::error::$error_message"
-                fi
-              done <<< "$test_output"
+              # Анализируем вывод на ошибки
+              echo "$test_output" | grep -oP "(?<=Error Message:)(.*?)(?=Stack Trace:)" | while read -r error_message; do
+                echo "::error::$error_message"
+              done
             fi
       
+            # Выводим сам результат для проверки
             echo "$test_output"
           done
       
