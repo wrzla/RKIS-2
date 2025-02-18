@@ -48,39 +48,18 @@ jobs:
 
       - name: Run tests and report failures
         run: |
-          # Массив для всех проектов
-          mapfile -t test_projects < <(find ./Занятие\ 1 -name '*.csproj')
+          # Выполняем тесты и сохраняем вывод
+          test_output=$(dotnet test --no-restore --no-build --logger "console;verbosity=normal")
       
-          # Выполнение тестов для каждого проекта
-          test_failed=false
-          for test_project in "${test_projects[@]}"; do
-            echo "Running tests for: \"$test_project\""
+          echo "$test_output"
       
-            # Запуск тестов и сохранение вывода
-            test_output=$(dotnet test "$test_project" --no-restore --no-build)
-      
-            # Печать всего вывода тестов для отладки
-            echo "$test_output"
-      
-            # Проверка на наличие неудачных тестов
-            if echo "$test_output" | grep -q "Failed"; then
-              test_failed=true
-              echo "Test failures found for $test_project"
-      
-              # Печать всех строк с "Failed" для отладки
-              echo "$test_output" | grep "Failed" | while read -r line; do
-                echo "Failed test line: $line"
-                # Если нужная информация о тесте содержится в строке, добавляем аннотацию
-                if [[ "$line" =~ (.*) ]]; then
-                  test_name="${BASH_REMATCH[1]}"
-                  echo "::error file=$test_project::$test_name failed"
-                fi
-              done
-            fi
+          echo "$test_output" | grep -E "^\s*Failed\s" | while read -r line; do
+            test_name=$(echo "$line" | awk '{print $2}')
+            
+            echo "::error title=Test failed::$test_name"
           done
       
-          if [ "$test_failed" = true ]; then
-            echo "Tests failed. See errors above."
+          if echo "$test_output" | grep -q "Failed"; then
             exit 1
           fi
 
