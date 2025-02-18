@@ -52,31 +52,31 @@ jobs:
           fi
 
       - name: 🧪 Run all tests
-        continue-on-error: true
         run: |
           test_failed=false
           mapfile -t test_projects < <(find ./Занятие\ 1 -name '*.csproj')
 
           for test_project in "${test_projects[@]}"; do
             echo "🔬 Running tests for: \"$test_project\""
-            test_output=$(dotnet test "$test_project" --no-restore --no-build --logger "console;verbosity=normal" 2>&1 || true)
-
-            if echo "$test_output" | grep -q "Failed!"; then
-              test_failed=true
-              echo "❌ Some tests failed!"
-
-              while IFS= read -r line; do
-                if [[ "$line" =~ ^\s*Failed\s+(.*)\s+\[ ]]; then
-                  test_name="${BASH_REMATCH[1]}"
-                  echo "::error title=Test Failed::$test_name"
-                fi
-              done <<< "$test_output"
-            fi
+            test_output=$(dotnet test "$test_project" --no-restore --no-build --logger "console;verbosity=normal")
 
             echo "$test_output"
+
+            failed_tests_count=$(echo "$test_output" | grep -Eo "Failed:[[:space:]]+[0-9]+" | awk '{print $2}')
+            if [[ "$failed_tests_count" -gt 0 ]]; then
+              test_failed=true
+              echo "❌ $failed_tests_count tests failed!"
+            fi
+
+            while IFS= read -r line; do
+              if [[ "$line" =~ ^\s*Failed\s+(.*)\s+\[ ]]; then
+                test_name="${BASH_REMATCH[1]}"
+                echo "::error title=Test Failed::$test_name"
+              fi
+            done <<< "$test_output"
           done
 
-          echo "test_failed=$test_failed" >> $GITHUB_ENV
+          echo "test_failed=$test_failed" >> "$GITHUB_ENV"
 
       - name: ✅ Final Check
         run: |
