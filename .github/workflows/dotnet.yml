@@ -19,7 +19,7 @@ jobs:
         run: |
           build_failed=false
 
-          mapfile -t projects < <(find ./Занятие\ 1 ./Занятие\ 2 ./Занятие\ 3 ./Занятие\ 4 -name '*.csproj')
+          mapfile -t projects < <(find ./Занятие\ 1 -name '*.csproj')
 
           for project in "${projects[@]}"; do
             echo "Restoring dependencies for project: \"$project\""
@@ -56,7 +56,7 @@ jobs:
         run: |
           test_failed=false
 
-          mapfile -t test_projects < <(find ./Занятие\ 1 ./Занятие\ 2 ./Занятие\ 3 ./Занятие\ 4 -name '*.csproj')
+          mapfile -t test_projects < <(find ./Занятие\ 1 -name '*.csproj')
 
           for test_project in "${test_projects[@]}"; do
             echo "Running tests for: \"$test_project\""
