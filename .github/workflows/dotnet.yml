@@ -68,7 +68,6 @@ jobs:
             if [[ "$failed_tests_count" -gt 0 ]]; then
               test_failed=true
               echo "❌ $failed_tests_count tests failed!"
-            fi
 
               while IFS= read -r line; do
                 if [[ "$line" =~ ^\s*Failed\s+(.*)\s+\[ ]]; then
