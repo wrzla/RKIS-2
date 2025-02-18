@@ -70,6 +70,8 @@ jobs:
                 if [[ "$line" =~ (.*) ]]; then
                   test_name="${BASH_REMATCH[1]}"
                   # Аннотируем ошибку в GitHub Actions с ссылкой на тест
+                  echo "$test_project"
+                  echo "$test_name"
                   echo "::error file=$test_project::$test_name failed"
                 fi
               done
