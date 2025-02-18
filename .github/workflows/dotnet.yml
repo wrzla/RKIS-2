@@ -9,33 +9,30 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: ⚙️ Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 6.0.x
 
-      - name: Build all projects
+      - name: 🔨 Build all projects
         continue-on-error: true
         run: |
           build_failed=false
           mapfile -t projects < <(find ./Занятие\ 1 -name '*.csproj')
 
           for project in "${projects[@]}"; do
-            echo "🔹 Restoring dependencies: \"$project\""
+            echo "📦 Restoring dependencies for project: \"$project\""
             dotnet restore "$project"
 
-            echo "🛠️ Building: \"$project\""
+            echo "🚀 Building project: \"$project\""
             build_output=$(dotnet build "$project" --no-restore || true)
 
-            # Проверяем наличие ошибок в билде
             if [[ $build_output == *"error"* ]]; then
               build_failed=true
             fi
 
-            # Обрабатываем ошибки и создаем аннотации
             echo "$build_output" | awk '!seen[$0]++' | while read -r line; do
               if [[ "$line" =~ ^(.*[a-zA-Z0-9_/.]+)\(([0-9]+),([0-9]+)\):\ error\ (.*)$ ]]; then
                 file="${BASH_REMATCH[1]}"
@@ -48,45 +45,53 @@ jobs:
           done
 
           echo "build_failed=$build_failed" >> $GITHUB_ENV
+          if [[ "$build_failed" == "true" ]]; then
+            echo "❌ Build failed!"
+          else
+            echo "✅ Build successful!"
+          fi
 
-      - name: Test all projects
+      - name: 🧪 Run all tests
         continue-on-error: true
         run: |
           test_failed=false
           mapfile -t test_projects < <(find ./Занятие\ 1 -name '*.csproj')
 
           for test_project in "${test_projects[@]}"; do
-            echo "🧪 Running tests: \"$test_project\""
+            echo "🔬 Running tests for: \"$test_project\""
             
-            test_output=$(dotnet test "$test_project" --no-restore --no-build --logger "console;verbosity=detailed" 2>&1 | tee test_results.log)
+            test_output=$(dotnet test "$test_project" --no-restore --no-build --logger "console;verbosity=detailed" || true)
 
-            # Проверяем наличие упавших тестов
-            if grep -q "Failed!" test_results.log; then
+            if [[ $test_output == *"Failed!"* ]]; then
               test_failed=true
+              echo "❌ Some tests have failed!"
 
-              # Ищем строки с упавшими тестами и выводим аннотации
-              grep -E "^\s*Failed\s" test_results.log | while read -r line; do
-                test_name=$(echo "$line" | awk '{print $2}')
-                echo "::error title=Test failed::$test_name"
-              done
-
-              # Выводим полные ошибки тестов
-              echo "🔴 Test failures detected:"
-              grep -E "^\s*Error Message:" -A3 test_results.log || true
+              while IFS= read -r line; do
+                if [[ "$line" =~ ^\s*Error Message:\ (.*) ]]; then
+                  error_message="${BASH_REMATCH[1]}"
+                  echo "::error title=Test failed::$error_message"
+                fi
+              done <<< "$test_output"
             fi
+
+            echo "$test_output"
           done
 
           echo "test_failed=$test_failed" >> $GITHUB_ENV
-
-      - name: Final Check
-        run: |
-          if [[ "$build_failed" == "true" ]]; then
-            echo "❌ Build failed."
-            exit 1
-          elif [[ "$test_failed" == "true" ]]; then
-            echo "❌ Tests failed."
-            exit 1
+          if [[ "$test_failed" == "true" ]]; then
+            echo "❌ Tests failed!"
           else
-            echo "✅ Build and tests completed successfully!"
+            echo "✅ All tests passed!"
           fi
 
+      - name: ✅ Final Check
+        run: |
+          if [[ "$build_failed" == "true" ]]; then
+            echo "❌ Build failed due to errors in the projects."
+            exit 1
+          elif [[ "$test_failed" == "true" ]]; then
+            echo "❌ Some tests have failed. The workflow will now fail."
+            exit 1
+          else
+            echo "✅ Build and tests completed successfully without errors!"
+          fi
