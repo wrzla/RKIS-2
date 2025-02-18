@@ -60,9 +60,15 @@ jobs:
             echo "🔬 Running tests for: \"$test_project\""
             test_output=$(dotnet test "$test_project" --no-restore --no-build --logger "console;verbosity=normal" 2>&1 || true)
 
-            if echo "$test_output" | grep -q "Failed!"; then
+            #if echo "$test_output" | grep -q "Failed!"; then
+              #test_failed=true
+              #echo "❌ Some tests failed!"
+              
+            failed_tests_count=$(echo "$test_output" | grep -Eo "Failed:[[:space:]]+[0-9]+" | awk '{print $2}')
+            if [[ "$failed_tests_count" -gt 0 ]]; then
               test_failed=true
-              echo "❌ Some tests failed!"
+              echo "❌ $failed_tests_count tests failed!"
+            fi
 
               while IFS= read -r line; do
                 if [[ "$line" =~ ^\s*Failed\s+(.*)\s+\[ ]]; then
