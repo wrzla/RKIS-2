@@ -50,26 +50,31 @@ jobs:
         run: |
           test_failed=false
           mapfile -t test_projects < <(find ./Занятие\ 1 -name '*.csproj')
-
+      
           for test_project in "${test_projects[@]}"; do
             echo "Running tests for: \"$test_project\""
-            test_output=$(dotnet test "$test_project" --no-restore --no-build --logger trx || true)
-
+            
+            # Запуск тестов с выводом в формате trx
+            test_output=$(dotnet test "$test_project" --no-restore --no-build --logger "trx" || true)
+      
+            # Проверяем, были ли в тестах неудачи
             if [[ $test_output == *"Failed!"* ]]; then
               test_failed=true
+      
+              # Перебираем строки вывода на наличие ошибок выполнения тестов
               while IFS= read -r line; do
-                if [[ "$line" =~ ([^:]+):([0-9]+):\ error:\ (.*) ]]; then
-                  file="${BASH_REMATCH[1]}"
-                  line_number="${BASH_REMATCH[2]}"
-                  error_message="${BASH_REMATCH[3]}"
-                  echo "::error file=$file,line=$line_number::$error_message"
+                # Обработка ошибок выполнения тестов в формате NUnit (например, исключения)
+                if [[ "$line" =~ \<error\ (.*)\>(.*)\<\/error\> ]]; then
+                  error_type="${BASH_REMATCH[1]}"
+                  error_message="${BASH_REMATCH[2]}"
+                  echo "::error::Test failed: $error_type - $error_message"
                 fi
               done <<< "$test_output"
             fi
-
+      
             echo "$test_output"
           done
-
+      
           if [ "$test_failed" = true ]; then
             echo "Tests failed. See errors above."
             exit 1
