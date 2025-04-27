@@ -1,4 +1,4 @@
-﻿namespace LimitedSizeStack;
+namespace LimitedSizeStack;
 
 public class Counter
 {
@@ -27,7 +27,7 @@ class FinalizableClass
 	}
 
 	// Это деструктор. Специальный метод, который вызывается сборщиком мусора, перед тем как освободить память от этого объекта.
-	~FinalizableClass()
+	FinalizableClass()
 	{
 		lock (Counter)
 		{
